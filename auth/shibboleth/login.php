@@ -1,18 +1,18 @@
 <?php
 
-    require_once("../../config.php");
-    require_once($CFG->dirroot."/auth/shibboleth/auth.php");
+require_once("../../config.php");
+require_once($CFG->dirroot."/auth/shibboleth/auth.php");
 
-    //initialize variables
-    $errormsg = '';
+//initialize variables
+$errormsg = '';
 
-/// Check for timed out sessions
-    if (!empty($SESSION->has_timed_out)) {
-        $session_has_timed_out = true;
-        $SESSION->has_timed_out = false;
-    } else {
-        $session_has_timed_out = false;
-    }
+// Check for timed out sessions
+if (!empty($SESSION->has_timed_out)) {
+    $session_has_timed_out = true;
+    $SESSION->has_timed_out = false;
+} else {
+    $session_has_timed_out = false;
+}
 
 
 //HTTPS is required in this page when $CFG->loginhttps enabled
@@ -43,18 +43,10 @@ $PAGE->https_required();
 
         // Redirect to SessionInitiator with entityID as argument
         if (isset($IdPs[$selectedIdP][1]) && !empty($IdPs[$selectedIdP][1])) {
-            // For Shibbolet 1.x Service Providers
-            header('Location: '.$IdPs[$selectedIdP][1].'?providerId='. urlencode($selectedIdP) .'&target='. urlencode($CFG->wwwroot.'/auth/shibboleth/index.php'));
-
-            // For Shibbolet 2.x Service Providers
-            // header('Location: '.$IdPs[$selectedIdP][1].'?entityID='. urlencode($selectedIdP) .'&target='. urlencode($CFG->wwwroot.'/auth/shibboleth/index.php'));
-
+            header('Location: '.$IdPs[$selectedIdP][1].'?entityID='. urlencode($selectedIdP) .'&target='. urlencode($CFG->wwwroot.'/auth/shibboleth/index.php'));
         } else {
-            // For Shibbolet 1.x Service Providers
-            header('Location: /Shibboleth.sso?providerId='. urlencode($selectedIdP) .'&target='. urlencode($CFG->wwwroot.'/auth/shibboleth/index.php'));
-
-            // For Shibboleth 2.x Service Providers
-            // header('Location: /Shibboleth.sso/DS?entityID='. urlencode($selectedIdP) .'&target='. urlencode($CFG->wwwroot.'/auth/shibboleth/index.php'));
+            // Use Shibboleth default SessionInitiator
+            header('Location: /Shibboleth.sso/Login?entityID='. urlencode($selectedIdP) .'&target='. urlencode($CFG->wwwroot.'/auth/shibboleth/index.php'));
         }
     } elseif (isset($_POST['idp']) && !isset($IdPs[$_POST['idp']]))  {
         $errormsg = get_string('auth_shibboleth_errormsg', 'auth_shibboleth');
@@ -70,5 +62,4 @@ $PAGE->https_required();
     echo $OUTPUT->header();
     include("index_form.html");
     echo $OUTPUT->footer();
-
-
+?>

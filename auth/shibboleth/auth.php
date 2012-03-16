@@ -38,8 +38,16 @@ class auth_plugin_shibboleth extends auth_plugin_base {
      * Constructor.
      */
     function auth_plugin_shibboleth() {
+        global $DB;
+        
         $this->authtype = 'shibboleth';
         $this->config = get_config('auth/shibboleth');
+        
+        // Add custom user fields
+        $customfields = $DB->get_records('user_info_field');
+        foreach($customfields as $customfield){
+           $this->userfields[] = strtolower($customfield->shortname);
+        }
     }
 
     /**
@@ -94,7 +102,7 @@ class auth_plugin_shibboleth extends auth_plugin_base {
 
         // Check whether we have got all the essential attributes
         if ( empty($_SERVER[$this->config->user_attribute]) ) {
-            print_error( 'shib_not_all_attributes_error', 'auth_shibboleth' , '', "'".$this->config->user_attribute."' ('".$_SERVER[$this->config->user_attribute]."'), '".$this->config->field_map_firstname."' ('".$_SERVER[$this->config->field_map_firstname]."'), '".$this->config->field_map_lastname."' ('".$_SERVER[$this->config->field_map_lastname]."') and '".$this->config->field_map_email."' ('".$_SERVER[$this->config->field_map_email]."')");
+            print_error( 'shib_not_all_attributes_error', 'auth_shibboleth' , '', "'".$this->config->user_attribute."' ('".$_SERVER[$this->config->user_attribute]."'), '".$this->config->field_map_firstname."' ('".$_SERVER[$this->config->field_map_firstname]."') and '".$this->config->field_map_lastname."' ('".$_SERVER[$this->config->field_map_lastname]."')");
         }
 
         $attrmap = $this->get_attributes();
@@ -129,7 +137,7 @@ class auth_plugin_shibboleth extends auth_plugin_base {
             // modify the variable $moodleattributes
             include($this->config->convert_data);
         }
-
+        
         return $result;
     }
 
@@ -223,7 +231,7 @@ class auth_plugin_shibboleth extends auth_plugin_base {
      * @param array $page An object containing all the data for this page.
      */
     function config_form($config, $err, $user_fields) {
-        include "config.html";
+        include("config.html");
     }
 
     /**

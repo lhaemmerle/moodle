@@ -3698,6 +3698,19 @@ function create_user_record($username, $password, $auth = 'manual') {
         set_user_preference('auth_forcepasswordchange', 1, $user);
     }
     update_internal_user_password($user, $password);
+    
+    // Set custom fields
+    $customfieldrecords = $DB->get_records('user_info_field');
+    foreach($customfieldrecords as $customfieldrecord){
+        $fieldname = strtolower($customfieldrecord->shortname);
+        if (isset($newinfo[$fieldname])){
+            $propertyname = 'profile_field_'.$customfieldrecord->shortname;
+            $user->$propertyname = $newinfo[$fieldname];
+        }
+    }
+    
+    // save profile including custom fields
+    profile_save_data($user);
 
     // fetch full user record for the event, the complete user data contains too much info
     // and we want to be consistent with other places that trigger this event
@@ -3719,8 +3732,17 @@ function update_user_record($username) {
     $username = trim(moodle_strtolower($username)); /// just in case check text case
 
     $oldinfo = $DB->get_record('user', array('username'=>$username, 'mnethostid'=>$CFG->mnet_localhost_id), '*', MUST_EXIST);
+    $olduser = get_complete_user_data('id', $oldinfo->id);
     $newuser = array();
+    $newuserprofile = array();
     $userauth = get_auth_plugin($oldinfo->auth);
+    
+    // Get custom fields
+    $customfields = array();
+    $customfieldrecords = $DB->get_records('user_info_field');
+    foreach($customfieldrecords as $customfieldrecord){
+       $customfields[strtolower($customfieldrecord->shortname)] = $customfieldrecord->shortname;
+    }
 
     if ($newinfo = $userauth->get_userinfo($username)) {
         $newinfo = truncate_userinfo($newinfo);
@@ -3728,14 +3750,19 @@ function update_user_record($username) {
             $key = strtolower($key);
             if (!property_exists($oldinfo, $key) or $key === 'username' or $key === 'id'
                     or $key === 'auth' or $key === 'mnethostid' or $key === 'deleted') {
-                // unknown or must not be changed
-                continue;
+                
+                // Check if field is a custom field
+                if (!isset($customfields[$key])){
+                    // unknown or must not be changed
+                    continue;
+                }
             }
             $confval = $userauth->config->{'field_updatelocal_' . $key};
             $lockval = $userauth->config->{'field_lock_' . $key};
             if (empty($confval) || empty($lockval)) {
                 continue;
             }
+            
             if ($confval === 'onlogin') {
                 // MDL-4207 Don't overwrite modified user profile values with
                 // empty LDAP values when 'unlocked if empty' is set. The purpose
@@ -3744,20 +3771,43 @@ function update_user_record($username) {
                 // nothing_ for this field. Thus it makes sense to let this value
                 // stand in until LDAP is giving a value for this field.
                 if (!(empty($value) && $lockval === 'unlockedifempty')) {
-                    if ((string)$oldinfo->$key !== (string)$value) {
-                        $newuser[$key] = (string)$value;
+                    
+                    if (isset($customfields[$key])){
+                        // Process custom field
+                        if ((string)$olduser->profile[$key] !== (string)$value) {
+                            $newuserprofile[$customfields[$key]] = (string)$value;
+                        }               
+                    } else {
+                        // Process regular user field
+                        if ((string)$oldinfo->$key !== (string)$value) {
+                            $newuser[$key] = (string)$value;
+                        }                    
                     }
                 }
             }
         }
-        if ($newuser) {
+        
+        if ($newuserprofile){
+            $newusercomplete = get_complete_user_data('id', $oldinfo->id);
+            foreach ($newuserprofile as $fieldname => $value){
+                $propertyname = 'profile_field_'.$fieldname;
+                $newusercomplete->$propertyname = $value;
+            }
+            
+            // save profile including custom fields
+            profile_save_data($newusercomplete);
+        }
+        
+        if ($newuser || $newuserprofile) {
             $newuser['id'] = $oldinfo->id;
             $newuser['timemodified'] = time();
             $DB->update_record('user', $newuser);
+            
             // fetch full user record for the event, the complete user data contains too much info
             // and we want to be consistent with other places that trigger this event
             events_trigger('user_updated', $DB->get_record('user', array('id'=>$oldinfo->id)));
         }
+
     }
 
     return get_complete_user_data('id', $oldinfo->id);

@@ -51,6 +51,7 @@ if ($frm = data_submitted() and confirm_sesskey()) {
 $user_fields = $authplugin->userfields;
 //$user_fields = array("firstname", "lastname", "email", "phone1", "phone2", "institution", "department", "address", "city", "country", "description", "idnumber", "lang");
 
+
 /// Get the auth title (from core or own auth lang files)
     $authtitle = $authplugin->get_title();
 /// Get the auth descriptions (from core or own auth lang files)
@@ -88,7 +89,8 @@ exit;
 // other options
 // Note: lockconfig_ fields have special handling.
 function print_auth_lock_options ($auth, $user_fields, $helptext, $retrieveopts, $updateopts) {
-    global $OUTPUT;
+    global $OUTPUT, $DB;
+    
     echo '<tr><td colspan="3">';
     if ($retrieveopts) {
         echo $OUTPUT->heading(get_string('auth_data_mapping', 'auth'));
@@ -112,6 +114,13 @@ function print_auth_lock_options ($auth, $user_fields, $helptext, $retrieveopts,
                 $helptext = '&nbsp;';
     }
 
+    // Add custom user fields
+    $customfieldsrecords = $DB->get_records('user_info_field');
+    $customfields = array();
+    foreach($customfieldsrecords as $customfieldsrecord){
+        $customfields[strtolower($customfieldsrecord->shortname)] = $customfieldsrecord->name;
+    }
+
     foreach ($user_fields as $field) {
 
         // Define some vars we'll work with
@@ -132,6 +141,8 @@ function print_auth_lock_options ($auth, $user_fields, $helptext, $retrieveopts,
         $fieldname = $field;
         if ($fieldname === 'lang') {
             $fieldname = get_string('language');
+        } elseif (isset($customfields[$field])) {
+            $fieldname = $customfields[$field]; 
         } elseif (preg_match('/^(.+?)(\d+)$/', $fieldname, $matches)) {
             $fieldname =  get_string($matches[1]) . ' ' . $matches[2];
         } elseif ($fieldname == 'url') {
