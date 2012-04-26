@@ -39,14 +39,14 @@ class auth_plugin_shibboleth extends auth_plugin_base {
      */
     function auth_plugin_shibboleth() {
         global $DB;
-        
+
         $this->authtype = 'shibboleth';
         $this->config = get_config('auth/shibboleth');
-        
+
         // Add custom user fields
         $customfields = $DB->get_records('user_info_field');
         foreach($customfields as $customfield){
-           $this->userfields[] = strtolower($customfield->shortname);
+           $this->userfields[] = $customfield->shortname;
         }
     }
 
@@ -59,7 +59,7 @@ class auth_plugin_shibboleth extends auth_plugin_base {
      * @return bool Authentication success or failure.
      */
     function user_login($username, $password) {
-       global $SESSION;
+       global $SESSION, $DB;
 
         // If we are in the shibboleth directory then we trust the server var
         if (!empty($_SERVER[$this->config->user_attribute])) {
@@ -80,7 +80,18 @@ class auth_plugin_shibboleth extends auth_plugin_base {
             // Set shibboleth session ID for logout
             $SESSION->shibboleth_session_id  = $sessionkey;
 
-            return (strtolower($_SERVER[$this->config->user_attribute]) == strtolower($username));
+            if (strtolower($_SERVER[$this->config->user_attribute]) == strtolower($username)) {
+                $eventdata = new object();
+                $eventdata->component   = 'auth/shibboleth';
+                $eventdata->name        = 'login';        // type of message from that module (as module defines it)
+                $eventdata->user        = $DB->get_record('user', array('username' => $username));
+                events_trigger('shib_user_login', $eventdata);
+
+                return true;
+            }
+            else {
+                return false;
+            }
         } else {
             // If we are not, the user has used the manual login and the login name is
             // unknown, so we return false.
