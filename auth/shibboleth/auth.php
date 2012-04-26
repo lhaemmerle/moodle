@@ -39,14 +39,14 @@ class auth_plugin_shibboleth extends auth_plugin_base {
      */
     function auth_plugin_shibboleth() {
         global $DB;
-        
+
         $this->authtype = 'shibboleth';
         $this->config = get_config('auth/shibboleth');
-        
+
         // Add custom user fields
         $customfields = $DB->get_records('user_info_field');
         foreach($customfields as $customfield){
-           $this->userfields[] = strtolower($customfield->shortname);
+           $this->userfields[] = $customfield->shortname;
         }
     }
 
